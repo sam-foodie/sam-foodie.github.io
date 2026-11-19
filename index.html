@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>我的美食口袋</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 私人、溫暖、好用的美食筆記本，像隨身的集點小冊
+   IDEA: 晴天藍的筆記本封面＋手寫評分卡
+   PICTURE: 收藏清單本身與台灣地圖上的圖釘
+   COLOUR and TYPE: 天空藍 #6ab1d4 招牌、深海藍按鈕、淺水藍底，星星芥末黃；Noto Sans TC 900 標題
+   LAYOUT: 手機優先，上方天空藍招牌帶、篩選列、卡片清單／地圖，右下新增鈕 */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#0d1a20);--ink:light-dark(#16313d,#e6f2f7);--mute:light-dark(#5b7682,#8fa9b4);--head:light-dark(#6ab1d4,#1f5873);--htext:light-dark(#0e2f40,#eaf6fc);--deep:light-dark(#1f6f96,#7cc3e3);--ondeep:light-dark(#fff,#0d1a20);
+--red:var(--head);--redd:var(--deep);--gold:#f2b705;--line:light-dark(#dcebf2,#203540);
+--card:light-dark(#f3f9fc,#14262e);--chip:light-dark(#e8f3f9,#1b313b);--sea:light-dark(#dff0f8,#10222a);--land:light-dark(#fff,#1d3440);--coast:light-dark(#8fbfd6,#3f6a7e);--lbl:light-dark(#8eaebb,#5f8596)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans TC",system-ui,-apple-system,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.top{background:var(--head);color:var(--htext);padding:calc(env(safe-area-inset-top) + 18px) max(5vw,16px) 16px}
+.top h1{margin:0;font-size:clamp(30px,7vw,42px);font-weight:900;line-height:1.05;letter-spacing:.02em}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.top .row{justify-content:space-between}
+.stat{font-size:15px;opacity:.95;margin-top:6px}
+.stat b{font-size:20px}
+.ib{border:2px solid var(--htext);background:transparent;color:var(--htext);border-radius:12px;min-height:44px;padding:0 14px;font-weight:700}
+.search{margin-top:14px;width:100%;height:48px;border-radius:14px;border:0;padding:0 16px;font-size:16px;background:#fff;color:#16313d}
+.seg{display:flex;background:rgba(14,47,64,.14);border-radius:14px;padding:4px;margin-top:12px}
+.seg button{flex:1;min-height:40px;border:0;border-radius:10px;background:transparent;color:var(--htext);font-weight:700}
+.seg button[aria-pressed=true]{background:#fff;color:#1f6f96}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px max(5vw,16px);display:grid;gap:8px}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font-size:15px}
+.chip[aria-pressed=true]{background:var(--htext);color:var(--head);border-color:var(--htext)}
+.sel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px}
+select,input[type=text],input[type=date],textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px 12px;font-size:16px}
+textarea{min-height:76px;resize:vertical}
+main{padding:14px max(5vw,16px) calc(110px + env(safe-area-inset-bottom));max-width:1240px;margin:0 auto}
+.list{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr))}
+.card{border:0;text-align:start;background:var(--card);border-radius:18px;padding:16px;display:grid;gap:6px;width:100%}
+.card h3{margin:0;font-size:19px;line-height:1.3}
+.meta{color:var(--mute);font-size:14px}
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.b-want{background:light-dark(#dff0f8,#1b3b4a);color:light-dark(#1f5a78,#a8d8ee)}
+.b-been{background:var(--deep);color:var(--ondeep)}
+.stars{color:var(--gold);letter-spacing:1px;white-space:nowrap}
+.pc{font-size:14px;display:grid;gap:2px}.pc span{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.pro::before{content:"＋ ";color:#2f8f5b;font-weight:900}.con::before{content:"－ ";color:#b0574f;font-weight:900}
+.empty{text-align:center;padding:48px 16px;color:var(--mute)}
+.empty svg{width:120px;height:120px}
+.empty h2{color:var(--ink);font-size:22px;margin:12px 0 6px}
+.btn{min-height:48px;border-radius:14px;border:0;padding:0 18px;font-weight:700;font-size:16px;background:var(--deep);color:var(--ondeep);display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.dark{background:var(--htext);color:var(--head)}
+.fab{position:fixed;right:max(5vw,16px);bottom:calc(20px + env(safe-area-inset-bottom));z-index:8;height:60px;padding:0 22px;border-radius:30px;font-size:18px;box-shadow:0 8px 24px rgba(31,111,150,.35)}
+.mapwrap{position:relative;background:var(--sea);border-radius:20px;overflow:hidden}
+.mapwrap svg{display:block;width:100%;height:min(68vh,640px);touch-action:manipulation}
+.mapnote{font-size:14px;color:var(--mute);margin:8px 2px}
+.pop{position:absolute;left:12px;right:12px;bottom:12px}
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(10,8,7,.45);display:none;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:20px max(5vw,18px) calc(24px + env(safe-area-inset-bottom))}
+.sheet h2{margin:0 0 12px;font-size:24px;line-height:1.2}
+.f{display:grid;gap:6px;margin-bottom:14px}
+.f>label,.lab{font-weight:700;font-size:15px}
+.hint{font-size:13px;color:var(--mute)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.starpick{display:flex;gap:4px}
+.starpick button{width:48px;height:48px;border:0;background:var(--chip);border-radius:12px;font-size:24px;color:light-dark(#c9cfd0,#4a413c)}
+.starpick button.on{color:var(--gold)}
+.mini{height:220px;border-radius:14px;overflow:hidden;background:var(--sea)}
+.mini svg{width:100%;height:100%;display:block}
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.acts>*{flex:1 1 140px}
+.dl{display:grid;gap:12px;margin:10px 0}
+.dl div{background:var(--card);border-radius:14px;padding:12px 14px;white-space:pre-wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));z-index:30;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:14px;display:none;gap:12px;align-items:center;max-width:92vw}
+.toast.on{display:flex}.toast button{background:none;border:0;color:var(--gold);font-weight:700;min-height:36px}
+.sync{font-size:12px;opacity:.85;margin-top:4px}
+@media(prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(40px);opacity:.4}}}
+@media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:22px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row">
+    <div><h1>我的美食口袋</h1><div class="stat" id="stat"></div><div class="sync" id="sync">連線中…</div></div>
+    <button class="ib" id="toolsBtn">匯入／備份</button>
+  </div>
+  <input class="search" id="q" type="search" placeholder="搜尋店名、備註、優缺點" aria-label="搜尋">
+  <div class="seg" role="group" aria-label="檢視方式"><button id="vList" aria-pressed="true">清單</button><button id="vMap" aria-pressed="false">地圖</button></div>
+</header>
+<div class="bar">
+  <div class="chips" id="stChips"></div>
+  <div class="sel">
+    <select id="fArea" aria-label="區域"></select>
+    <select id="fType" aria-label="類型"></select>
+    <select id="fSort" aria-label="排序"><option value="new">最新加入</option><option value="rate">評分高到低</option><option value="name">店名</option></select>
+  </div>
+</div>
+<main id="main"></main>
+<button class="btn fab" id="addBtn">＋ 新增</button>
+<div class="overlay" id="ov"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastAct"></button></div>
+<input type="file" id="fileIn" accept=".json,.csv,application/json,text/csv" hidden>
+
+<script>
+{
+const COUNTIES=[["基隆市",25.13,121.74,"北部"],["臺北市",25.05,121.55,"北部"],["新北市",25.01,121.46,"北部"],["桃園市",24.99,121.30,"北部"],["新竹市",24.80,120.97,"北部"],["新竹縣",24.75,121.10,"北部"],["宜蘭縣",24.70,121.75,"北部"],["苗栗縣",24.50,120.85,"中部"],["臺中市",24.15,120.68,"中部"],["彰化縣",24.05,120.52,"中部"],["南投縣",23.90,120.85,"中部"],["雲林縣",23.70,120.43,"中部"],["嘉義市",23.48,120.45,"南部"],["嘉義縣",23.45,120.30,"南部"],["臺南市",23.00,120.21,"南部"],["高雄市",22.63,120.30,"南部"],["屏東縣",22.55,120.55,"南部"],["花蓮縣",23.98,121.60,"東部"],["臺東縣",22.76,121.14,"東部"],["澎湖縣",23.57,119.58,"離島"],["金門縣",24.44,118.32,"離島"],["連江縣",26.16,119.95,"離島"]];
+const AREAS=["北部","中部","南部","東部","離島"];
+const TYPES=["小吃","牛肉麵","拉麵","日式","韓式","火鍋","燒肉","熱炒","早午餐","咖啡廳","甜點","麵包","西式","南洋","中式餐館","素食","酒吧","其他"];
+const COAST=[[121.54,25.30],[121.75,25.15],[122.00,25.01],[121.85,24.85],[121.86,24.60],[121.70,24.30],[121.62,23.98],[121.50,23.50],[121.38,23.10],[121.15,22.75],[120.98,22.45],[120.90,22.25],[120.85,21.90],[120.73,21.95],[120.70,22.10],[120.60,22.37],[120.45,22.47],[120.27,22.62],[120.18,22.90],[120.10,23.05],[120.08,23.30],[120.14,23.38],[120.15,23.60],[120.20,23.80],[120.32,24.05],[120.50,24.25],[120.62,24.50],[120.80,24.70],[120.92,24.85],[121.03,25.02],[121.18,25.10],[121.40,25.18]];
+const VIEWS={"全台":"-6 0 228 405","北部":"80 5 135 115","中部":"20 90 130 140","南部":"0 205 112 195","東部":"88 68 120 272"};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const P=(lng,lat)=>[(lng-119.95)*100,(25.45-lat)*110];
+const unP=(x,y)=>[x/100+119.95,25.45-y/110];
+const areaOf=c=>(COUNTIES.find(k=>k[0]===c)||[])[3]||"國外";
+const nearest=(lat,lng)=>{let b=null,d=1e9;for(const k of COUNTIES){const e=(k[1]-lat)**2+(k[2]-lng)**2;if(e<d){d=e;b=k[0]}}return d<0.6?b:""};
+const stars=n=>n?"★".repeat(n)+"☆".repeat(5-n):"";
+const newId=()=>"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const coastPath="M"+COAST.map(p=>P(...p).map(v=>v.toFixed(1)).join(",")).join("L")+"Z";
+
+let items=[],col=null,view="list",fStatus="all",selPin=null,lastDeleted=null,toastT=null;
+const LS="foodpocket.v1";
+const loadLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||"[]")}catch(e){return []}};
+const saveLocal=()=>{try{localStorage.setItem(LS,JSON.stringify(items))}catch(e){}};
+
+async function put(it){
+  const i=items.findIndex(x=>x.id===it.id);if(i>=0)items[i]=it;else items.push(it);
+  render();
+  if(col){try{await col.doc(it.id).set(JSON.parse(JSON.stringify(it)))}catch(e){toast("儲存失敗："+(e.code||"請稍後再試"))}}else saveLocal();
+}
+async function del(id){
+  items=items.filter(x=>x.id!==id);render();
+  if(col){try{await col.doc(id).delete()}catch(e){toast("刪除失敗")}}else saveLocal();
+}
+
+async function connect(){
+  items=loadLocal();render();
+  const c=window.claude;let db=null,user=null,uid=null;
+  try{if(c&&c.use){db=await c.use("db");user=await c.use("user");uid=user?await user.id():null}}catch(e){}
+  if(!db||!uid){$("sync").textContent="資料存在這台裝置的瀏覽器裡，記得定期備份";return}
+  col=db.collection("data/users/"+uid);
+  let first=true;const timer=setTimeout(()=>{$("sync").textContent="雲端暫時連不上，顯示的可能不是最新資料"},10000);
+  col.onSnapshot(s=>{
+    const remote=s.docs.map(d=>({...d.data(),id:d.id}));
+    if(!s.metadata.fromCache){clearTimeout(timer);$("sync").textContent="已安全儲存在你的私人空間";
+      if(first){first=false;const local=loadLocal();if(remote.length===0&&local.length){importItems(local,true);return}}}
+    items=remote;render();
+  },e=>{clearTimeout(timer);col=null;$("sync").textContent="雲端無法使用，改存在這台裝置";items=loadLocal();render()});
+}
+
+function filtered(){
+  const q=$("q").value.trim().toLowerCase(),a=$("fArea").value,t=$("fType").value,s=$("fSort").value;
+  let r=items.filter(it=>(fStatus==="all"||it.status===fStatus)
+    &&(!a||(a.startsWith("@")?it.county===a.slice(1):(it.country&&it.country!=="台灣"?a==="國外":areaOf(it.county)===a)))
+    &&(!t||it.type===t)
+    &&(!q||[it.name,it.district,it.county,it.pros,it.cons,it.note,it.type].join(" ").toLowerCase().includes(q)));
+  r.sort(s==="rate"?(x,y)=>(y.rating||0)-(x.rating||0):s==="name"?(x,y)=>x.name.localeCompare(y.name,"zh-Hant"):(x,y)=>(y.created||0)-(x.created||0));
+  return r;
+}
+function where(it){return it.country&&it.country!=="台灣"?[it.country,it.county,it.district].filter(Boolean).join(" · "):[it.county,it.district].filter(Boolean).join(" · ")||"未設定地區"}
+
+function fillFilters(){
+  const a=$("fArea").value,t=$("fType").value;
+  const used=[...new Set(items.map(i=>i.county).filter(Boolean))];
+  $("fArea").innerHTML=`<option value="">全部地區</option>`+AREAS.map(x=>`<option value="${x}">${x}</option>`).join("")+(items.some(i=>i.country&&i.country!=="台灣")?`<option value="國外">國外</option>`:"")
+   +`<optgroup label="縣市">`+COUNTIES.filter(k=>used.includes(k[0])).map(k=>`<option value="@${k[0]}">${k[0]}</option>`).join("")+`</optgroup>`;
+  const ts=[...new Set([...TYPES.filter(x=>items.some(i=>i.type===x)),...items.map(i=>i.type).filter(Boolean)])];
+  $("fType").innerHTML=`<option value="">全部類型</option>`+ts.map(x=>`<option>${esc(x)}</option>`).join("");
+  $("fArea").value=a;$("fType").value=t;
+}
+function render(){
+  const w=items.filter(i=>i.status==="want").length,b=items.length-w;
+  $("stat").innerHTML=`想去 <b>${w}</b>　·　去過 <b>${b}</b>`;
+  $("stChips").innerHTML=[["all","全部"],["want","想去"],["been","去過"]].map(([k,l])=>`<button class="chip" data-st="${k}" aria-pressed="${fStatus===k}">${l}</button>`).join("");
+  fillFilters();
+  const r=filtered();
+  if(!items.length){$("main").innerHTML=`<div class="empty"><svg viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="60" cy="100" rx="40" ry="8" fill="currentColor" opacity=".12"/><path d="M20 62h80a40 34 0 0 1-80 0z" fill="#6ab1d4"/><path d="M20 62h80" stroke="#1f6f96" stroke-width="5" stroke-linecap="round"/><path d="M44 20c-6 8 6 12 0 22M60 14c-6 9 6 13 0 26M76 20c-6 8 6 12 0 22" stroke="#f2b705" stroke-width="4" fill="none" stroke-linecap="round"/></svg><h2>口袋還是空的</h2><p>新增第一家你愛的店，或從 Google 地圖匯入已儲存的地點。</p><div class="acts" style="max-width:420px;margin:16px auto 0"><button class="btn" data-act="add">新增店家</button><button class="btn ghost" data-act="tools">從 Google 地圖匯入</button></div></div>`;return}
+  if(view==="map"){renderMap(r);return}
+  $("main").innerHTML=r.length?`<div class="list">${r.map(cardHTML).join("")}</div>`:`<div class="empty"><h2>沒有符合的店家</h2><p>試試換個篩選條件。</p></div>`;
+}
+function cardHTML(it){
+  return `<button class="card" data-open="${esc(it.id)}"><div class="row" style="justify-content:space-between"><h3>${esc(it.name)}</h3><span class="badge ${it.status==="been"?"b-been":"b-want"}">${it.status==="been"?"去過":"想去"}</span></div>
+  <div class="meta">${esc(where(it))}${it.type?" · "+esc(it.type):""}${it.price?" · "+"$".repeat(it.price):""}</div>
+  ${it.status==="been"&&it.rating?`<div class="stars" aria-label="${it.rating} 顆星">${stars(it.rating)}</div>`:""}
+  ${(it.pros||it.cons)?`<div class="pc">${it.pros?`<span class="pro">${esc(it.pros)}</span>`:""}${it.cons?`<span class="con">${esc(it.cons)}</span>`:""}</div>`:""}</button>`;
+}
+function mapSVG(list,vb,opts={}){
+  const [,, vw]=vb.split(" ").map(Number),r=vw/55;
+  const pins=list.filter(i=>i.lat!=null&&i.lng!=null).map(i=>{const [x,y]=P(i.lng,i.lat);const on=selPin===i.id;
+    return `<g data-pin="${esc(i.id)}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="${r*2.2}" fill="transparent"/><path d="M${x} ${y}c${-r} ${-r*1.4} ${-r*1.3} ${-r*2} ${-r*1.3} ${-r*2.6}a${r*1.3} ${r*1.3} 0 0 1 ${r*2.6} 0c0 ${r*.6} ${-r*.3} ${r*1.2} ${-r*1.3} ${r*2.6}z" fill="${i.status==="been"?"#1f6f96":"#8fcbe6"}" stroke="#fff" stroke-width="${r*.25}" ${on?`transform="translate(${x} ${y}) scale(1.5) translate(${-x} ${-y})"`:""}/><circle cx="${x}" cy="${y-r*2.6}" r="${r*.45}" fill="${i.status==="been"?"#f2b705":"#1f5a78"}"/></g>`}).join("");
+  return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" ${opts.id?`id="${opts.id}"`:""} role="img" aria-label="台灣地圖"><path d="${coastPath}" style="fill:var(--land);stroke:var(--coast)" stroke-width="${vw/220}" stroke-linejoin="round"/>${COUNTIES.filter(k=>k[2]>119.9).map(k=>{const [x,y]=P(k[2],k[1]);return `<text x="${x}" y="${y}" font-size="${vw/34}" style="fill:var(--lbl)" text-anchor="middle">${k[0].replace(/[市縣]$/,"")}</text>`}).join("")}${pins}${opts.mark?(()=>{const [x,y]=P(opts.mark[1],opts.mark[0]);return `<circle cx="${x}" cy="${y}" r="${r*1.1}" fill="#1f6f96" stroke="#fff" stroke-width="${r*.3}"/>`})():""}</svg>`;
+}
+let mapView="全台";
+function renderMap(r){
+  const off=r.filter(i=>i.lat==null||i.lng==null).length;
+  const sel=r.find(i=>i.id===selPin);
+  $("main").innerHTML=`<div class="chips" style="margin-bottom:10px">${Object.keys(VIEWS).map(k=>`<button class="chip" data-mv="${k}" aria-pressed="${mapView===k}">${k}</button>`).join("")}</div>
+  <div class="mapwrap">${mapSVG(r,VIEWS[mapView])}${sel?`<div class="pop">${cardHTML(sel)}</div>`:""}</div>
+  <p class="mapnote">深藍＝去過，淺藍＝想去。點圖釘看店家。${off?`有 ${off} 家還沒有座標，編輯時貼上 Google 地圖連結或在小地圖點選位置就會出現。`:""}</p>`;
+}
+
+/* ---------- 表單 ---------- */
+let draft=null;
+function openForm(it){
+  draft=it?JSON.parse(JSON.stringify(it)):{id:newId(),name:"",status:"want",country:"台灣",county:"",district:"",type:"",rating:0,price:0,pros:"",cons:"",note:"",lat:null,lng:null,url:"",created:Date.now()};
+  const d=draft,tw=d.country==="台灣";
+  $("sheet").innerHTML=`<h2>${items.some(x=>x.id===d.id)?"編輯店家":"新增店家"}</h2>
+  <div class="f"><label for="iLink">Google 地圖連結（選填）</label><input type="text" id="iLink" placeholder="貼上分享連結，或座標如 25.04, 121.51" value="${esc(d.url)}"><span class="hint" id="linkHint">貼上後會自動帶入店名和位置。</span></div>
+  <div class="f"><label for="iName">店名</label><input type="text" id="iName" value="${esc(d.name)}" autocomplete="off"></div>
+  <div class="f"><span class="lab">狀態</span><div class="seg" style="background:var(--chip);margin:0"><button type="button" data-ss="want" style="color:inherit" aria-pressed="${d.status==="want"}">想去</button><button type="button" data-ss="been" style="color:inherit" aria-pressed="${d.status==="been"}">去過</button></div></div>
+  <div id="beenBox" ${d.status==="been"?"":"hidden"}>
+    <div class="f"><span class="lab">我的評分</span><div class="starpick" id="sp">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="${d.rating>=n?"on":""}" aria-label="${n} 顆星">★</button>`).join("")}</div></div>
+    <div class="f"><label for="iPros">優點</label><textarea id="iPros" placeholder="湯頭濃、份量大…">${esc(d.pros)}</textarea></div>
+    <div class="f"><label for="iCons">缺點</label><textarea id="iCons" placeholder="要排隊、偏鹹…">${esc(d.cons)}</textarea></div>
+  </div>
+  <div class="two"><div class="f"><label for="iCountry">國家</label><input type="text" id="iCountry" value="${esc(d.country)}"></div>
+  <div class="f"><label for="iCounty">縣市</label>${tw?`<select id="iCounty"><option value="">請選擇</option>${COUNTIES.map(k=>`<option ${d.county===k[0]?"selected":""}>${k[0]}</option>`).join("")}</select>`:`<input type="text" id="iCounty" value="${esc(d.county)}" placeholder="城市">`}</div></div>
+  <div class="two"><div class="f"><label for="iDist">區域／商圈</label><input type="text" id="iDist" value="${esc(d.district)}" placeholder="大安區、逢甲…"></div>
+  <div class="f"><label for="iPrice">價位</label><select id="iPrice">${["未填","$ 平價","$$ 中等","$$$ 偏高","$$$$ 高級"].map((l,n)=>`<option value="${n}" ${d.price==n?"selected":""}>${l}</option>`).join("")}</select></div></div>
+  <div class="f"><span class="lab">類型</span><div class="chips" style="flex-wrap:wrap">${TYPES.map(t=>`<button type="button" class="chip" data-ty="${t}" aria-pressed="${d.type===t}">${t}</button>`).join("")}</div><input type="text" id="iType" placeholder="或自己輸入類型" value="${TYPES.includes(d.type)?"":esc(d.type)}"></div>
+  <div class="f"><label for="iNote">備註</label><textarea id="iNote" placeholder="必點、營業時間、跟誰去…">${esc(d.note)}</textarea></div>
+  ${tw?`<div class="f"><span class="lab">位置</span><div class="mini" id="mini">${mapSVG([],VIEWS["全台"],{id:"miniSvg",mark:d.lat!=null?[d.lat,d.lng]:null})}</div><span class="hint" id="posHint">${d.lat!=null?`已設定座標 ${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}`:"點小地圖大概標出位置，或貼上連結自動帶入。"}</span></div>`:""}
+  <div class="acts"><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="save">儲存</button></div>`;
+  $("ov").classList.add("on");
+  $("iLink").addEventListener("input",onLink);
+}
+function onLink(){
+  const s=$("iLink").value.trim();draft.url=s;if(!s){$("linkHint").textContent="貼上後會自動帶入店名和位置。";return}
+  const m=s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||s.match(/[?&](?:q|ll|query|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i)||s.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  const n=s.match(/\/place\/([^\/@?]+)/);
+  if(n&&!$("iName").value){try{$("iName").value=decodeURIComponent(n[1].replace(/\+/g," "))}catch(e){}}
+  if(m){setPos(+m[1],+m[2]);$("linkHint").textContent="已帶入位置 ✓"}
+  else if(/goo\.gl|app\.goo/.test(s))$("linkHint").textContent="短網址讀不到座標：在 Google 地圖長按地點可複製座標貼到這裡，或直接點下方小地圖。連結還是會存下來，方便之後開啟。";
+  else $("linkHint").textContent="沒讀到座標，連結仍會存下來。";
+}
+function setPos(lat,lng){
+  draft.lat=lat;draft.lng=lng;const tw=draft.country==="台灣";
+  if(tw){const c=nearest(lat,lng);const sel=$("iCounty");if(c&&sel&&!sel.value)sel.value=c;
+    if($("mini")){$("mini").innerHTML=mapSVG([],VIEWS["全台"],{id:"miniSvg",mark:[lat,lng]});$("posHint").textContent=`已設定座標 ${lat.toFixed(4)}, ${lng.toFixed(4)}`}}
+}
+function collect(){
+  const d=draft;d.name=$("iName").value.trim();d.country=$("iCountry").value.trim()||"台灣";d.county=$("iCounty").value.trim();d.district=$("iDist").value.trim();
+  d.price=+$("iPrice").value;d.note=$("iNote").value.trim();const ct=$("iType").value.trim();if(ct)d.type=ct;
+  if($("iPros")){d.pros=$("iPros").value.trim();d.cons=$("iCons").value.trim()}
+  d.updated=Date.now();return d;
+}
+
+/* ---------- 詳細 ---------- */
+function openDetail(id){
+  const it=items.find(x=>x.id===id);if(!it)return;
+  const dest=it.lat!=null?`${it.lat},${it.lng}`:[it.name,it.district,it.county,it.country!=="台灣"?it.country:""].filter(Boolean).join(" ");
+  const open=it.url&&/^https?:\/\//.test(it.url)?it.url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.lat!=null?it.name+" "+dest:dest)}`;
+  $("sheet").innerHTML=`<div class="row" style="justify-content:space-between"><span class="badge ${it.status==="been"?"b-been":"b-want"}">${it.status==="been"?"去過":"想去"}</span><span class="meta">${esc(it.type||"")}${it.price?" · "+"$".repeat(it.price):""}</span></div>
+  <h2 style="margin-top:10px">${esc(it.name)}</h2><div class="meta">${esc(where(it))}</div>
+  ${it.status==="been"&&it.rating?`<div class="stars" style="font-size:24px;margin-top:6px">${stars(it.rating)}</div>`:""}
+  <div class="dl">${it.pros?`<div><b class="pro">優點</b>\n${esc(it.pros)}</div>`:""}${it.cons?`<div><b class="con">缺點</b>\n${esc(it.cons)}</div>`:""}${it.note?`<div><b>備註</b>\n${esc(it.note)}</div>`:""}</div>
+  <div class="acts"><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}" target="_blank" rel="noopener">導航過去</a><a class="btn dark" href="${esc(open)}" target="_blank" rel="noopener">在 Google 地圖開啟</a></div>
+  <div class="acts">${it.status==="want"?`<button class="btn ghost" data-act="markbeen" data-id="${esc(id)}">我去過了，寫評價</button>`:""}<button class="btn ghost" data-act="edit" data-id="${esc(id)}">編輯</button><button class="btn ghost" data-act="del" data-id="${esc(id)}">刪除</button></div>
+  <div class="acts"><button class="btn ghost" data-act="close">關閉</button></div>`;
+  $("ov").classList.add("on");
+}
+
+/* ---------- 匯入／備份 ---------- */
+let dl=null;
+function openTools(){
+  $("sheet").innerHTML=`<h2>匯入與備份</h2>
+  <div class="f"><span class="lab">從 Google 地圖匯入已儲存的地點</span><span class="hint">1. 到 takeout.google.com，只勾「地圖（你的地點）」和「已儲存」，匯出。<br>2. 解壓縮後，選擇「已儲存的地點.json」（Saved Places.json），或「已儲存」資料夾裡任一清單的 .csv（如「想去的地點.csv」）。<br>匯入的店會先標成「想去」，重複的店名會略過。</span><button class="btn" data-act="pick">選擇檔案匯入</button></div>
+  <div class="f"><span class="lab">備份</span><span class="hint">把所有收藏存成一個檔案，換裝置或想保險時用。也能用上面的按鈕把備份檔匯回來。</span><div class="acts">${dl||!window.claude?`<button class="btn dark" data-act="export">下載備份檔</button>`:""}<button class="btn ghost" data-act="copy">複製備份內容</button></div></div>
+  <div class="f"><span class="lab">加到 iPhone 主畫面</span><span class="hint">用 Safari 打開這個頁面 → 點下方分享鈕 → 「加入主畫面」，之後就像 App 一樣一點就開。</span></div>
+  <div class="acts"><button class="btn ghost" data-act="close">關閉</button></div>`;
+  $("ov").classList.add("on");
+}
+function parseCSV(t){const rows=[];let row=[],f="",q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===","){row.push(f);f=""}else if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f=""}else f+=c}if(f||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
+function fromText(name,text){
+  const out=[];
+  if(/\.csv$/i.test(name)){const rows=parseCSV(text.replace(/^﻿/,""));const h=rows.shift().map(x=>x.trim().toLowerCase());
+    const ix=k=>h.findIndex(x=>k.includes(x));const ti=ix(["title","標題","名稱"]),ni=ix(["note","附註","備註"]),ui=ix(["url","網址"]);
+    for(const r of rows){const nm=(r[ti]||"").trim();if(nm)out.push({name:nm,note:(r[ni]||"").trim(),url:(r[ui]||"").trim()})}}
+  else{const j=JSON.parse(text);
+    if(Array.isArray(j))return j;
+    for(const f of j.features||[]){const p=f.properties||{},loc=p.location||{},g=(f.geometry||{}).coordinates||[];
+      const nm=loc.name||p.Title||p.name||"";if(!nm)continue;const o={name:nm,url:p.google_maps_url||p["Google Maps URL"]||"",note:loc.address||""};
+      if(g.length===2&&(g[0]||g[1])){o.lng=+g[0];o.lat=+g[1]}out.push(o)}}
+  return out;
+}
+async function importItems(list,silent){
+  const names=new Set(items.map(i=>i.name.trim()));let n=0;
+  for(const raw of list){const nm=String(raw.name||"").trim();if(!nm||names.has(nm))continue;names.add(nm);
+    const it={id:newId(),name:nm,status:raw.status==="been"?"been":"want",country:raw.country||"台灣",county:raw.county||"",district:raw.district||"",type:raw.type||"",rating:+raw.rating||0,price:+raw.price||0,pros:raw.pros||"",cons:raw.cons||"",note:raw.note||"",lat:raw.lat!=null?+raw.lat:null,lng:raw.lng!=null?+raw.lng:null,url:raw.url||"",created:raw.created||Date.now()+n};
+    if(it.lat!=null&&!it.county&&it.country==="台灣")it.county=nearest(it.lat,it.lng);
+    if(it.lat==null&&it.url){const m=it.url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||it.url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);if(m){it.lat=+m[1];it.lng=+m[2];if(!it.county)it.county=nearest(it.lat,it.lng)}}
+    await put(it);n++}
+  if(!silent)toast(n?`已匯入 ${n} 家店`:"沒有新的店家可匯入");
+}
+const backup=()=>JSON.stringify(items.map(({id,...r})=>r),null,1);
+
+/* ---------- 共用 ---------- */
+function close(){$("ov").classList.remove("on");draft=null}
+function toast(msg,act,fn){$("toastMsg").textContent=msg;$("toastAct").textContent=act||"";$("toastAct").hidden=!act;$("toastAct").onclick=()=>{fn&&fn();$("toast").classList.remove("on")};$("toast").classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>$("toast").classList.remove("on"),5000)}
+
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button,[data-pin],a");
+  if(e.target===$("ov")){close();return}
+  if(e.target.closest("#miniSvg")&&draft){const s=$("miniSvg"),pt=s.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(s.getScreenCTM().inverse());const [lng,lat]=unP(p.x,p.y);setPos(+lat.toFixed(5),+lng.toFixed(5));return}
+  if(!t)return;const ds=t.dataset;
+  if(ds.st){fStatus=ds.st;render()}
+  else if(ds.mv){mapView=ds.mv;selPin=null;render()}
+  else if(ds.pin){selPin=selPin===ds.pin?null:ds.pin;render()}
+  else if(ds.open)openDetail(ds.open);
+  else if(ds.ss&&draft){draft.status=ds.ss;t.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));$("beenBox").hidden=ds.ss!=="been"}
+  else if(ds.star&&draft){draft.rating=+ds.star;$("sp").querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.star<=draft.rating))}
+  else if(ds.ty&&draft){draft.type=draft.type===ds.ty?"":ds.ty;$("iType").value="";t.parentNode.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ty===draft.type))}
+  else if(ds.act){const a=ds.act;
+    if(a==="close")close();
+    else if(a==="add"){openForm()}
+    else if(a==="tools")openTools();
+    else if(a==="save"){const d=collect();if(!d.name){$("iName").focus();$("iName").style.borderColor="var(--red)";return}close();await put(d);toast("已儲存")}
+    else if(a==="edit")openForm(items.find(x=>x.id===ds.id));
+    else if(a==="markbeen"){const it=items.find(x=>x.id===ds.id);openForm({...it,status:"been"})}
+    else if(a==="del"){const it=items.find(x=>x.id===ds.id);close();lastDeleted=it;await del(it.id);toast(`已刪除「${it.name}」`,"復原",()=>put(lastDeleted))}
+    else if(a==="pick")$("fileIn").click();
+    else if(a==="export"){const fn=`美食口袋備份-${new Date().toISOString().slice(0,10)}.json`;if(!dl){const u=URL.createObjectURL(new Blob([backup()],{type:"application/json"}));const l=document.createElement("a");l.href=u;l.download=fn;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return}try{await dl.save({filename:fn,data:backup()})}catch(err){toast("沒有下載，可改用「複製備份內容」")}}
+    else if(a==="copy"){try{await navigator.clipboard.writeText(backup());toast("已複製，可貼到備忘錄保存")}catch(err){toast("無法複製")}}
+  }
+});
+document.addEventListener("change",e=>{if(e.target.id==="iCountry"&&draft){collect();openForm(draft)}});
+$("fileIn").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;close();
+  try{const list=fromText(f.name,await f.text());await importItems(list)}catch(err){toast("這個檔案讀不懂，請選 .json 或 .csv")}});
+["q","fArea","fType","fSort"].forEach(id=>$(id).addEventListener(id==="q"?"input":"change",render));
+$("vList").onclick=()=>{view="list";$("vList").setAttribute("aria-pressed",true);$("vMap").setAttribute("aria-pressed",false);render()};
+$("vMap").onclick=()=>{view="map";$("vMap").setAttribute("aria-pressed",true);$("vList").setAttribute("aria-pressed",false);render()};
+$("addBtn").onclick=()=>openForm();
+$("toolsBtn").onclick=openTools;
+document.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+connect();
+(async()=>{try{if(window.claude&&window.claude.use)dl=await window.claude.use("downloads")}catch(e){}})();
+}
+</script>
+</body>
+</html>
