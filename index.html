@@ -71,8 +71,9 @@ main{padding:14px max(5vw,16px) calc(110px + env(safe-area-inset-bottom));max-wi
 .f>label,.lab{font-weight:700;font-size:15px}
 .hint{font-size:13px;color:var(--mute)}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-.starpick{display:flex;gap:4px}
-.starpick button{width:48px;height:48px;border:0;background:var(--chip);border-radius:12px;font-size:24px;color:light-dark(#c9cfd0,#4a413c)}
+.starpick{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
+.sc{font-size:17px}
+.starpick button{width:100%;height:46px;padding:0;border:0;background:var(--chip);border-radius:9px;font-size:20px;color:light-dark(#c9d6dc,#3a4f5a)}
 .starpick button.on{color:var(--gold)}
 .mini{height:220px;border-radius:14px;overflow:hidden;background:var(--sea)}
 .mini svg{width:100%;height:100%;display:block}
@@ -122,13 +123,17 @@ const P=(lng,lat)=>[(lng-119.95)*100,(25.45-lat)*110];
 const unP=(x,y)=>[x/100+119.95,25.45-y/110];
 const areaOf=c=>(COUNTIES.find(k=>k[0]===c)||[])[3]||"國外";
 const nearest=(lat,lng)=>{let b=null,d=1e9;for(const k of COUNTIES){const e=(k[1]-lat)**2+(k[2]-lng)**2;if(e<d){d=e;b=k[0]}}return d<0.6?b:""};
-const stars=n=>n?"★".repeat(n)+"☆".repeat(5-n):"";
+const stars=n=>n?"★".repeat(n)+"☆".repeat(10-n):"";
+const score=n=>`<span class="stars" aria-label="${n} 分，滿分 10">${stars(n)}</span> <b class="sc">${n}</b><span class="meta">/10</span>`;
+const norm=it=>{if(it.rating&&!it.r10){it.rating=Math.min(10,it.rating*2)}it.r10=true;return it};
+const TWC=COUNTIES.map(k=>k[0]);
+const fixC=c=>{c=String(c||"").replace(/^台/,"臺");return TWC.includes(c)?c:""};
 const newId=()=>"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const coastPath="M"+COAST.map(p=>P(...p).map(v=>v.toFixed(1)).join(",")).join("L")+"Z";
 
 let items=[],col=null,view="list",fStatus="all",selPin=null,lastDeleted=null,toastT=null;
 const LS="foodpocket.v1";
-const loadLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||"[]")}catch(e){return []}};
+const loadLocal=()=>{try{return JSON.parse(localStorage.getItem(LS)||"[]").map(norm)}catch(e){return []}};
 const saveLocal=()=>{try{localStorage.setItem(LS,JSON.stringify(items))}catch(e){}};
 
 async function put(it){
@@ -149,7 +154,7 @@ async function connect(){
   col=db.collection("data/users/"+uid);
   let first=true;const timer=setTimeout(()=>{$("sync").textContent="雲端暫時連不上，顯示的可能不是最新資料"},10000);
   col.onSnapshot(s=>{
-    const remote=s.docs.map(d=>({...d.data(),id:d.id}));
+    const remote=s.docs.map(d=>norm({...d.data(),id:d.id}));
     if(!s.metadata.fromCache){clearTimeout(timer);$("sync").textContent="已安全儲存在你的私人空間";
       if(first){first=false;const local=loadLocal();if(remote.length===0&&local.length){importItems(local,true);return}}}
     items=remote;render();
@@ -161,7 +166,7 @@ function filtered(){
   let r=items.filter(it=>(fStatus==="all"||it.status===fStatus)
     &&(!a||(a.startsWith("@")?it.county===a.slice(1):(it.country&&it.country!=="台灣"?a==="國外":areaOf(it.county)===a)))
     &&(!t||it.type===t)
-    &&(!q||[it.name,it.district,it.county,it.pros,it.cons,it.note,it.type].join(" ").toLowerCase().includes(q)));
+    &&(!q||[it.name,it.district,it.county,it.address,it.pros,it.cons,it.note,it.type].join(" ").toLowerCase().includes(q)));
   r.sort(s==="rate"?(x,y)=>(y.rating||0)-(x.rating||0):s==="name"?(x,y)=>x.name.localeCompare(y.name,"zh-Hant"):(x,y)=>(y.created||0)-(x.created||0));
   return r;
 }
@@ -189,7 +194,7 @@ function render(){
 function cardHTML(it){
   return `<button class="card" data-open="${esc(it.id)}"><div class="row" style="justify-content:space-between"><h3>${esc(it.name)}</h3><span class="badge ${it.status==="been"?"b-been":"b-want"}">${it.status==="been"?"去過":"想去"}</span></div>
   <div class="meta">${esc(where(it))}${it.type?" · "+esc(it.type):""}${it.price?" · "+"$".repeat(it.price):""}</div>
-  ${it.status==="been"&&it.rating?`<div class="stars" aria-label="${it.rating} 顆星">${stars(it.rating)}</div>`:""}
+  ${it.status==="been"&&it.rating?`<div>${score(it.rating)}</div>`:""}
   ${(it.pros||it.cons)?`<div class="pc">${it.pros?`<span class="pro">${esc(it.pros)}</span>`:""}${it.cons?`<span class="con">${esc(it.cons)}</span>`:""}</div>`:""}</button>`;
 }
 function mapSVG(list,vb,opts={}){
@@ -210,14 +215,14 @@ function renderMap(r){
 /* ---------- 表單 ---------- */
 let draft=null;
 function openForm(it){
-  draft=it?JSON.parse(JSON.stringify(it)):{id:newId(),name:"",status:"want",country:"台灣",county:"",district:"",type:"",rating:0,price:0,pros:"",cons:"",note:"",lat:null,lng:null,url:"",created:Date.now()};
+  draft=it?JSON.parse(JSON.stringify(it)):{id:newId(),name:"",status:"want",country:"台灣",county:"",district:"",type:"",rating:0,r10:true,price:0,pros:"",cons:"",note:"",address:"",lat:null,lng:null,url:"",created:Date.now()};
   const d=draft,tw=d.country==="台灣";
   $("sheet").innerHTML=`<h2>${items.some(x=>x.id===d.id)?"編輯店家":"新增店家"}</h2>
-  <div class="f"><label for="iLink">Google 地圖連結（選填）</label><input type="text" id="iLink" placeholder="貼上分享連結，或座標如 25.04, 121.51" value="${esc(d.url)}"><span class="hint" id="linkHint">貼上後會自動帶入店名和位置。</span></div>
+  <div class="f"><label for="iLink">Google 地圖分享內容（選填）</label><textarea id="iLink" style="min-height:64px" placeholder="在 Google 地圖按「分享」→「拷貝」，整段貼上；也可以貼座標如 25.04, 121.51">${esc(d.url)}</textarea><span class="hint" id="linkHint">貼上後會自動帶入店名、地址、縣市和區域。</span></div>
   <div class="f"><label for="iName">店名</label><input type="text" id="iName" value="${esc(d.name)}" autocomplete="off"></div>
   <div class="f"><span class="lab">狀態</span><div class="seg" style="background:var(--chip);margin:0"><button type="button" data-ss="want" style="color:inherit" aria-pressed="${d.status==="want"}">想去</button><button type="button" data-ss="been" style="color:inherit" aria-pressed="${d.status==="been"}">去過</button></div></div>
   <div id="beenBox" ${d.status==="been"?"":"hidden"}>
-    <div class="f"><span class="lab">我的評分</span><div class="starpick" id="sp">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="${d.rating>=n?"on":""}" aria-label="${n} 顆星">★</button>`).join("")}</div></div>
+    <div class="f"><span class="lab">我的評分</span><div class="starpick" id="sp">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button type="button" data-star="${n}" class="${d.rating>=n?"on":""}" aria-label="${n} 分">★</button>`).join("")}</div><span class="hint" id="spv">${d.rating?d.rating+" / 10 分":"點星星打分數，滿分 10"}</span></div>
     <div class="f"><label for="iPros">優點</label><textarea id="iPros" placeholder="湯頭濃、份量大…">${esc(d.pros)}</textarea></div>
     <div class="f"><label for="iCons">缺點</label><textarea id="iCons" placeholder="要排隊、偏鹹…">${esc(d.cons)}</textarea></div>
   </div>
@@ -226,20 +231,51 @@ function openForm(it){
   <div class="two"><div class="f"><label for="iDist">區域／商圈</label><input type="text" id="iDist" value="${esc(d.district)}" placeholder="大安區、逢甲…"></div>
   <div class="f"><label for="iPrice">價位</label><select id="iPrice">${["未填","$ 平價","$$ 中等","$$$ 偏高","$$$$ 高級"].map((l,n)=>`<option value="${n}" ${d.price==n?"selected":""}>${l}</option>`).join("")}</select></div></div>
   <div class="f"><span class="lab">類型</span><div class="chips" style="flex-wrap:wrap">${TYPES.map(t=>`<button type="button" class="chip" data-ty="${t}" aria-pressed="${d.type===t}">${t}</button>`).join("")}</div><input type="text" id="iType" placeholder="或自己輸入類型" value="${TYPES.includes(d.type)?"":esc(d.type)}"></div>
+  <div class="f"><label for="iAddr">地址</label><input type="text" id="iAddr" value="${esc(d.address||"")}" placeholder="自動帶入，也可以自己填"></div>
   <div class="f"><label for="iNote">備註</label><textarea id="iNote" placeholder="必點、營業時間、跟誰去…">${esc(d.note)}</textarea></div>
   ${tw?`<div class="f"><span class="lab">位置</span><div class="mini" id="mini">${mapSVG([],VIEWS["全台"],{id:"miniSvg",mark:d.lat!=null?[d.lat,d.lng]:null})}</div><span class="hint" id="posHint">${d.lat!=null?`已設定座標 ${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}`:"點小地圖大概標出位置，或貼上連結自動帶入。"}</span></div>`:""}
   <div class="acts"><button class="btn ghost" data-act="close">取消</button><button class="btn" data-act="save">儲存</button></div>`;
   $("ov").classList.add("on");
-  $("iLink").addEventListener("input",onLink);
+  let lt;$("iLink").addEventListener("input",()=>{clearTimeout(lt);lt=setTimeout(onLink,500)});
 }
-function onLink(){
-  const s=$("iLink").value.trim();draft.url=s;if(!s){$("linkHint").textContent="貼上後會自動帶入店名和位置。";return}
-  const m=s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||s.match(/[?&](?:q|ll|query|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i)||s.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
-  const n=s.match(/\/place\/([^\/@?]+)/);
-  if(n&&!$("iName").value){try{$("iName").value=decodeURIComponent(n[1].replace(/\+/g," "))}catch(e){}}
-  if(m){setPos(+m[1],+m[2]);$("linkHint").textContent="已帶入位置 ✓"}
-  else if(/goo\.gl|app\.goo/.test(s))$("linkHint").textContent="短網址讀不到座標：在 Google 地圖長按地點可複製座標貼到這裡，或直接點下方小地圖。連結還是會存下來，方便之後開啟。";
-  else $("linkHint").textContent="沒讀到座標，連結仍會存下來。";
+const hint=t=>{const h=$("linkHint");if(h)h.textContent=t};
+const ADDR=/(?:\d{3,6})?\s*((?:臺|台)(?:北|中|南|東)(?:市|縣)|(?:新北|桃園|高雄|基隆|新竹|嘉義)市|(?:新竹|苗栗|彰化|南投|雲林|嘉義|屏東|宜蘭|花蓮|澎湖|金門|連江)縣)\s*([^\s\d縣市]{1,3}?[區鄉鎮市])?[^\n]*/;
+function setIf(id,v){const e=$(id);if(e&&v&&!e.value.trim())e.value=v}
+async function osm(path){const r=await fetch("https://nominatim.openstreetmap.org/"+path+"&format=jsonv2&addressdetails=1&accept-language=zh-TW");if(!r.ok)throw 0;return r.json()}
+function fromOsm(a){if(!a)return;const c=fixC(a.city||a.county||a.state);
+  if(a.country_code&&a.country_code!=="tw"&&a.country){$("iCountry").value=a.country;return}
+  const sel=$("iCounty");if(c&&sel&&!sel.value)sel.value=c;
+  setIf("iDist",a.suburb||a.city_district||a.town||a.township||a.village||"");
+  const road=[a.road,a.house_number?a.house_number+"號":""].filter(Boolean).join("");
+  if(road)setIf("iAddr",[c,a.suburb||a.city_district||a.town||"",road].join(""))}
+let linkSeq=0;
+async function onLink(){
+  if(!draft)return;const raw=$("iLink").value.trim(),seq=++linkSeq;
+  if(!raw){draft.url="";hint("貼上後會自動帶入店名、地址、縣市和區域。");return}
+  const url=(raw.match(/https?:\/\/\S+/)||[""])[0];draft.url=url||raw;
+  const lines=raw.split(/\n+/).map(x=>x.trim()).filter(x=>x&&!/^https?:\/\//.test(x));
+  const m=raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||raw.match(/[?&](?:q|ll|query|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i)||raw.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+  const n=raw.match(/\/place\/([^\/@?\s]+)/);
+  let name=n?(()=>{try{return decodeURIComponent(n[1].replace(/\+/g," "))}catch(e){return ""}})():"";
+  const addrLine=lines.find(x=>ADDR.test(x)||/\d+號/.test(x))||"";
+  if(!name)name=lines.find(x=>x!==addrLine&&!/^-?\d+\.\d+\s*,/.test(x))||"";
+  setIf("iName",name);
+  const found=[];if(name)found.push("店名");
+  if(addrLine){const am=addrLine.match(ADDR);const addr=addrLine.replace(/^\d{3,6}\s*/,"");setIf("iAddr",addr);found.push("地址");
+    if(am){const c=fixC(am[1]);const sel=$("iCounty");if(c&&sel&&!sel.value)sel.value=c;if(am[2])setIf("iDist",am[2]);found.push("縣市")}}
+  if(m){setPos(+m[1],+m[2]);found.push("位置");hint("已帶入"+found.join("、")+"，正在查詢地址…");
+    try{const j=await osm(`reverse?lat=${m[1]}&lon=${m[2]}&zoom=18`);if(seq!==linkSeq)return;fromOsm(j.address);hint("已帶入"+found.join("、")+"、地址 ✓（地址資料來自 OpenStreetMap）")}
+    catch(e){hint("已帶入"+found.join("、")+" ✓")}return}
+  if(addrLine){hint("已帶入"+found.join("、")+"，正在找座標…");
+    const q=addrLine.replace(/^\d{3,6}\s*/,"").replace(/\d+樓.*$/,"").replace(/[之-]\d+號/,"號");
+    try{let j=await osm(`search?q=${encodeURIComponent(q)}&countrycodes=tw&limit=1`);
+      if(!j.length)j=await osm(`search?q=${encodeURIComponent(q.replace(/\d+[巷弄號].*$/,""))}&countrycodes=tw&limit=1`);
+      if(seq!==linkSeq)return;
+      if(j.length){setPos(+(+j[0].lat).toFixed(5),+(+j[0].lon).toFixed(5));hint("已帶入"+found.join("、")+"、位置 ✓（位置可能是附近，可點小地圖微調）")}
+      else hint("已帶入"+found.join("、")+" ✓，找不到精確座標，可點小地圖標位置")}
+    catch(e){hint("已帶入"+found.join("、")+" ✓")}return}
+  if(/goo\.gl|app\.goo/.test(raw))hint(found.length?"已帶入"+found.join("、")+"。這段只有短網址，查不到地址：請在 Google 地圖按「分享」，選「拷貝」整段貼上（會含店名和地址）。":"只有短網址查不到資訊：請在 Google 地圖地點頁按「分享」→「拷貝」，把整段文字貼上（會含店名和地址）。");
+  else hint(found.length?"已帶入"+found.join("、")+" ✓":"沒讀到地點資訊，連結仍會存下來。");
 }
 function setPos(lat,lng){
   draft.lat=lat;draft.lng=lng;const tw=draft.country==="台灣";
@@ -247,7 +283,7 @@ function setPos(lat,lng){
     if($("mini")){$("mini").innerHTML=mapSVG([],VIEWS["全台"],{id:"miniSvg",mark:[lat,lng]});$("posHint").textContent=`已設定座標 ${lat.toFixed(4)}, ${lng.toFixed(4)}`}}
 }
 function collect(){
-  const d=draft;d.name=$("iName").value.trim();d.country=$("iCountry").value.trim()||"台灣";d.county=$("iCounty").value.trim();d.district=$("iDist").value.trim();
+  const d=draft;d.name=$("iName").value.trim();d.country=$("iCountry").value.trim()||"台灣";d.county=$("iCounty").value.trim();d.district=$("iDist").value.trim();d.address=$("iAddr").value.trim();
   d.price=+$("iPrice").value;d.note=$("iNote").value.trim();const ct=$("iType").value.trim();if(ct)d.type=ct;
   if($("iPros")){d.pros=$("iPros").value.trim();d.cons=$("iCons").value.trim()}
   d.updated=Date.now();return d;
@@ -256,11 +292,11 @@ function collect(){
 /* ---------- 詳細 ---------- */
 function openDetail(id){
   const it=items.find(x=>x.id===id);if(!it)return;
-  const dest=it.lat!=null?`${it.lat},${it.lng}`:[it.name,it.district,it.county,it.country!=="台灣"?it.country:""].filter(Boolean).join(" ");
+  const dest=it.lat!=null?`${it.lat},${it.lng}`:it.address?it.address:[it.name,it.district,it.county,it.country!=="台灣"?it.country:""].filter(Boolean).join(" ");
   const open=it.url&&/^https?:\/\//.test(it.url)?it.url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.lat!=null?it.name+" "+dest:dest)}`;
   $("sheet").innerHTML=`<div class="row" style="justify-content:space-between"><span class="badge ${it.status==="been"?"b-been":"b-want"}">${it.status==="been"?"去過":"想去"}</span><span class="meta">${esc(it.type||"")}${it.price?" · "+"$".repeat(it.price):""}</span></div>
-  <h2 style="margin-top:10px">${esc(it.name)}</h2><div class="meta">${esc(where(it))}</div>
-  ${it.status==="been"&&it.rating?`<div class="stars" style="font-size:24px;margin-top:6px">${stars(it.rating)}</div>`:""}
+  <h2 style="margin-top:10px">${esc(it.name)}</h2><div class="meta">${esc(where(it))}</div>${it.address?`<div class="meta">${esc(it.address)}</div>`:""}
+  ${it.status==="been"&&it.rating?`<div style="font-size:20px;margin-top:6px">${score(it.rating)}</div>`:""}
   <div class="dl">${it.pros?`<div><b class="pro">優點</b>\n${esc(it.pros)}</div>`:""}${it.cons?`<div><b class="con">缺點</b>\n${esc(it.cons)}</div>`:""}${it.note?`<div><b>備註</b>\n${esc(it.note)}</div>`:""}</div>
   <div class="acts"><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}" target="_blank" rel="noopener">導航過去</a><a class="btn dark" href="${esc(open)}" target="_blank" rel="noopener">在 Google 地圖開啟</a></div>
   <div class="acts">${it.status==="want"?`<button class="btn ghost" data-act="markbeen" data-id="${esc(id)}">我去過了，寫評價</button>`:""}<button class="btn ghost" data-act="edit" data-id="${esc(id)}">編輯</button><button class="btn ghost" data-act="del" data-id="${esc(id)}">刪除</button></div>
@@ -294,7 +330,7 @@ function fromText(name,text){
 async function importItems(list,silent){
   const names=new Set(items.map(i=>i.name.trim()));let n=0;
   for(const raw of list){const nm=String(raw.name||"").trim();if(!nm||names.has(nm))continue;names.add(nm);
-    const it={id:newId(),name:nm,status:raw.status==="been"?"been":"want",country:raw.country||"台灣",county:raw.county||"",district:raw.district||"",type:raw.type||"",rating:+raw.rating||0,price:+raw.price||0,pros:raw.pros||"",cons:raw.cons||"",note:raw.note||"",lat:raw.lat!=null?+raw.lat:null,lng:raw.lng!=null?+raw.lng:null,url:raw.url||"",created:raw.created||Date.now()+n};
+    const it={id:newId(),name:nm,status:raw.status==="been"?"been":"want",country:raw.country||"台灣",county:raw.county||"",district:raw.district||"",type:raw.type||"",rating:raw.r10?(+raw.rating||0):Math.min(10,(+raw.rating||0)*2),r10:true,address:raw.address||"",price:+raw.price||0,pros:raw.pros||"",cons:raw.cons||"",note:raw.note||"",lat:raw.lat!=null?+raw.lat:null,lng:raw.lng!=null?+raw.lng:null,url:raw.url||"",created:raw.created||Date.now()+n};
     if(it.lat!=null&&!it.county&&it.country==="台灣")it.county=nearest(it.lat,it.lng);
     if(it.lat==null&&it.url){const m=it.url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||it.url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);if(m){it.lat=+m[1];it.lng=+m[2];if(!it.county)it.county=nearest(it.lat,it.lng)}}
     await put(it);n++}
@@ -316,7 +352,7 @@ document.addEventListener("click",async e=>{
   else if(ds.pin){selPin=selPin===ds.pin?null:ds.pin;render()}
   else if(ds.open)openDetail(ds.open);
   else if(ds.ss&&draft){draft.status=ds.ss;t.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));$("beenBox").hidden=ds.ss!=="been"}
-  else if(ds.star&&draft){draft.rating=+ds.star;$("sp").querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.star<=draft.rating))}
+  else if(ds.star&&draft){draft.rating=+ds.star;$("sp").querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.star<=draft.rating));$("spv").textContent=draft.rating+" / 10 分"}
   else if(ds.ty&&draft){draft.type=draft.type===ds.ty?"":ds.ty;$("iType").value="";t.parentNode.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ty===draft.type))}
   else if(ds.act){const a=ds.act;
     if(a==="close")close();
