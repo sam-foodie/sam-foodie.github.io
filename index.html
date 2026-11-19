@@ -63,7 +63,9 @@ main{padding:14px max(5vw,16px) calc(110px + env(safe-area-inset-bottom));max-wi
 .btn.dark{background:var(--htext);color:var(--head)}
 .fab{position:fixed;right:max(5vw,16px);bottom:calc(20px + env(safe-area-inset-bottom));z-index:8;height:60px;padding:0 22px;border-radius:30px;font-size:18px;box-shadow:0 8px 24px rgba(31,111,150,.35)}
 .mapwrap{position:relative;background:var(--sea);border-radius:20px;overflow:hidden}
-.mapwrap svg{display:block;width:100%;height:min(68vh,640px);touch-action:manipulation}
+.mapwrap svg{display:block;width:100%;height:min(68vh,640px);touch-action:none;user-select:none;-webkit-user-select:none}
+.zoom{position:absolute;top:10px;right:10px;display:grid;gap:6px}
+.zoom button{width:44px;height:44px;border-radius:12px;border:0;background:var(--bg);color:var(--ink);font-size:22px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .mapnote{font-size:14px;color:var(--mute);margin:8px 2px}
 .pop{position:absolute;left:12px;right:12px;bottom:12px}
 .overlay{position:fixed;inset:0;z-index:20;background:rgba(10,8,7,.45);display:none;align-items:flex-end;justify-content:center}
@@ -127,7 +129,7 @@ const unP=(x,y)=>[x/100+119.95,25.45-y/110];
 const areaOf=c=>(COUNTIES.find(k=>k[0]===c)||[])[3]||"國外";
 const nearest=(lat,lng)=>{let b=null,d=1e9;for(const k of COUNTIES){const e=(k[1]-lat)**2+(k[2]-lng)**2;if(e<d){d=e;b=k[0]}}return d<0.6?b:""};
 const stars=n=>{n=Math.max(0,Math.min(10,Math.round(+n||0)));return n?"★".repeat(n)+"☆".repeat(10-n):""};
-const VERSION="2026-11-19d";
+const VERSION="2026-11-19e";
 const hashS=t=>{let h=5381;for(const ch of String(t))h=((h*33)^ch.codePointAt(0))>>>0;return h.toString(36)};
 const ME_K="foodpocket.me";
 const getMe=()=>{try{return localStorage.getItem(ME_K)||""}catch(e){return ""}};
@@ -231,13 +233,42 @@ function mapSVG(list,vb,opts={}){
     return `<g data-pin="${esc(g.id)}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="${r*2.2}" fill="transparent"/><path d="M${x} ${y}c${-r} ${-r*1.4} ${-r*1.3} ${-r*2} ${-r*1.3} ${-r*2.6}a${r*1.3} ${r*1.3} 0 0 1 ${r*2.6} 0c0 ${r*.6} ${-r*.3} ${r*1.2} ${-r*1.3} ${r*2.6}z" fill="${fill}" stroke="#fff" stroke-width="${r*.25}" ${on?`transform="translate(${x} ${y}) scale(1.5) translate(${-x} ${-y})"`:""}/><circle cx="${x}" cy="${y-r*2.6}" r="${r*.45}" fill="${dot}"/></g>`}).join("");
   return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" ${opts.id?`id="${opts.id}"`:""} role="img" aria-label="台灣地圖"><path d="${coastPath}" style="fill:var(--land);stroke:var(--coast)" stroke-width="${vw/220}" stroke-linejoin="round"/>${COUNTIES.filter(k=>k[2]>119.9).map(k=>{const [x,y]=P(k[2],k[1]);return `<text x="${x}" y="${y}" font-size="${vw/34}" style="fill:var(--lbl)" text-anchor="middle">${k[0].replace(/[市縣]$/,"")}</text>`}).join("")}${pins}${opts.mark?(()=>{const [x,y]=P(opts.mark[1],opts.mark[0]);return `<circle cx="${x}" cy="${y}" r="${r*1.1}" fill="#1f6f96" stroke="#fff" stroke-width="${r*.3}"/>`})():""}</svg>`;
 }
-let mapView="全台";
+let mapView="全台",mapVB=VIEWS["全台"],mapDragged=false;
 function renderMap(r){
   const off=r.filter(g=>g.p.lat==null||g.p.lng==null).length;
   const sel=r.find(g=>g.id===selPin);
   $("main").innerHTML=`<div class="chips" style="margin-bottom:10px">${Object.keys(VIEWS).map(k=>`<button class="chip" data-mv="${k}" aria-pressed="${mapView===k}">${k}</button>`).join("")}</div>
-  <div class="mapwrap">${mapSVG(r,VIEWS[mapView])}${sel?`<div class="pop">${cardHTML(sel)}</div>`:""}</div>
-  <p class="mapnote">深藍＝我去過，淺藍＝我想去，黃色＝只有朋友去過。點圖釘看店家。${off?`有 ${off} 家還沒有座標，編輯時貼上 Google 地圖網址或在小地圖點選位置就會出現。`:""}</p>`;
+  <div class="mapwrap">${mapSVG(r,mapVB,{id:"bigMap"})}<div class="zoom"><button data-zm="in" aria-label="放大">＋</button><button data-zm="out" aria-label="縮小">－</button></div>${sel?`<div class="pop">${cardHTML(sel)}</div>`:""}</div>
+  <p class="mapnote">兩指縮放、單指拖曳地圖。深藍＝我去過，淺藍＝我想去，黃色＝只有朋友去過。點圖釘看店家。${off?`有 ${off} 家還沒有座標，編輯時貼上 Google 地圖網址或在小地圖點選位置就會出現。`:""}</p>`;
+  bindMap();
+}
+const vbArr=()=>mapVB.split(" ").map(Number);
+function zoomAt(f,cx,cy){let [x,y,w,h]=vbArr();const nw=Math.min(300,Math.max(5,w*f)),k=nw/w;
+  if(cx==null){cx=x+w/2;cy=y+h/2}
+  mapVB=[cx-(cx-x)*k,cy-(cy-y)*k,w*k,h*k].map(v=>+v.toFixed(3)).join(" ");}
+function bindMap(){
+  const s=$("bigMap");if(!s)return;
+  const pts=new Map();let st=null,moved=false,timer=null;
+  const toSvg=(cx,cy)=>{const p=s.createSVGPoint();p.x=cx;p.y=cy;return p.matrixTransform(s.getScreenCTM().inverse())};
+  const upp=()=>1/s.getScreenCTM().a;
+  const apply=()=>s.setAttribute("viewBox",mapVB);
+  const settle=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(view==="map")render()},140)};
+  const begin=()=>{const v=vbArr(),a=[...pts.values()];
+    if(a.length===1)st={v,x:a[0].x,y:a[0].y,u:upp()};
+    else if(a.length>=2){const [p1,p2]=a,mx=(p1.x+p2.x)/2,my=(p2.y+p1.y)/2,m=toSvg(mx,my);st={v,d:Math.hypot(p1.x-p2.x,p1.y-p2.y)||1,m,mx,my,u:upp()}}};
+  s.addEventListener("pointerdown",e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1)moved=false;if(pts.size>1)[...pts.keys()].forEach(id=>{try{s.setPointerCapture(id)}catch(_){}});begin()});
+  s.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId)||!st)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});const a=[...pts.values()];
+    if(a.length===1&&st.d==null){const dx=a[0].x-st.x,dy=a[0].y-st.y;if(!moved&&Math.abs(dx)+Math.abs(dy)>6){moved=true;try{s.setPointerCapture(e.pointerId)}catch(_){}}if(!moved)return;
+      mapVB=[st.v[0]-dx*st.u,st.v[1]-dy*st.u,st.v[2],st.v[3]].map(v=>+v.toFixed(3)).join(" ");apply()}
+    else if(a.length>=2&&st.d!=null){moved=true;const [p1,p2]=a,d=Math.hypot(p1.x-p2.x,p1.y-p2.y)||1,f=st.d/d;
+      const nw=Math.min(300,Math.max(5,st.v[2]*f)),k=nw/st.v[2];const mx=(p1.x+p2.x)/2,my=(p1.y+p2.y)/2;
+      const cx=st.m.x-(mx-st.mx)*st.u*k,cy=st.m.y-(my-st.my)*st.u*k;
+      mapVB=[cx-(st.m.x-st.v[0])*k,cy-(st.m.y-st.v[1])*k,st.v[2]*k,st.v[3]*k].map(v=>+v.toFixed(3)).join(" ");apply()}});
+  const end=e=>{pts.delete(e.pointerId);if(pts.size)begin();else{st=null;if(moved){mapDragged=true;setTimeout(()=>mapDragged=false,350);settle()}}};
+  s.addEventListener("pointerup",end);s.addEventListener("pointercancel",end);
+  s.addEventListener("wheel",e=>{e.preventDefault();const p=toSvg(e.clientX,e.clientY);zoomAt(e.deltaY>0?1.15:1/1.15,p.x,p.y);apply();settle()},{passive:false});
+  ["gesturestart","gesturechange","gestureend"].forEach(n=>s.addEventListener(n,e=>e.preventDefault()));
+  s.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 }
 
 /* ---------- 表單 ---------- */
@@ -402,10 +433,12 @@ document.addEventListener("click",async e=>{
   const t=e.target.closest("button,[data-pin],a");
   if(e.target===$("ov")){close();return}
   if(e.target.closest("#miniSvg")&&draft){const s=$("miniSvg"),pt=s.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(s.getScreenCTM().inverse());const [lng,lat]=unP(p.x,p.y);setPos(+lat.toFixed(5),+lng.toFixed(5));return}
+  if(mapDragged&&e.target.closest("#bigMap"))return;
   if(!t)return;const ds=t.dataset;
   if(ds.st){fStatus=ds.st;render()}
   else if(ds.who!==undefined&&t.classList.contains("chip")&&!draft){fWho=ds.who;render()}
-  else if(ds.mv){mapView=ds.mv;selPin=null;render()}
+  else if(ds.mv){mapView=ds.mv;mapVB=VIEWS[ds.mv];selPin=null;render()}
+  else if(ds.zm){zoomAt(ds.zm==="in"?1/1.4:1.4);render()}
   else if(ds.pin){selPin=selPin===ds.pin?null:ds.pin;render()}
   else if(ds.open)openDetail(ds.open);
   else if(ds.ss&&draft){draft.status=ds.ss;t.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t));$("beenBox").hidden=ds.ss!=="been"}
