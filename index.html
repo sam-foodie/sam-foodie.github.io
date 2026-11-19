@@ -39,6 +39,9 @@ button{cursor:pointer}
 .chip{flex:none;min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font-size:15px}
 .chip[aria-pressed=true]{background:var(--htext);color:var(--head);border-color:var(--htext)}
 .sel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px}
+.sel2{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto}
+.ck{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;font-size:15px;white-space:nowrap}.ck input{width:22px;height:22px;accent-color:var(--deep)}.ck:has(input:disabled){opacity:.5}
+select:disabled{opacity:.5}
 select,input[type=text],input[type=date],textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px 12px;font-size:16px}
 textarea{min-height:76px;resize:vertical}
 main{padding:14px max(5vw,16px) calc(110px + env(safe-area-inset-bottom));max-width:1240px;margin:0 auto}
@@ -108,6 +111,11 @@ main{padding:14px max(5vw,16px) calc(110px + env(safe-area-inset-bottom));max-wi
     <select id="fType" aria-label="類型"></select>
     <select id="fSort" aria-label="排序"><option value="new">最新加入</option><option value="rate">評分高到低</option><option value="name">店名</option></select>
   </div>
+  <div class="sel sel2">
+    <select id="fOp" aria-label="評分條件"><option value="">評分不限</option><option value="ge">評分 ≥</option><option value="gt">評分 ＞</option><option value="eq">評分 ＝</option><option value="le">評分 ≤</option><option value="lt">評分 ＜</option></select>
+    <select id="fScore" aria-label="分數" disabled><option value="10">10 分</option><option value="9">9 分</option><option value="8" selected>8 分</option><option value="7">7 分</option><option value="6">6 分</option><option value="5">5 分</option><option value="4">4 分</option><option value="3">3 分</option><option value="2">2 分</option><option value="1">1 分</option></select>
+    <label class="ck"><input type="checkbox" id="fMine" disabled> 只看我的</label>
+  </div>
 </div>
 <main id="main"></main>
 <button class="btn fab" id="addBtn">＋ 新增</button>
@@ -129,7 +137,7 @@ const unP=(x,y)=>[x/100+119.95,25.45-y/110];
 const areaOf=c=>(COUNTIES.find(k=>k[0]===c)||[])[3]||"國外";
 const nearest=(lat,lng)=>{let b=null,d=1e9;for(const k of COUNTIES){const e=(k[1]-lat)**2+(k[2]-lng)**2;if(e<d){d=e;b=k[0]}}return d<0.6?b:""};
 const stars=n=>{n=Math.max(0,Math.min(10,Math.round(+n||0)));return n?"★".repeat(n)+"☆".repeat(10-n):""};
-const VERSION="2026-11-19e";
+const VERSION="2026-11-19i";
 const hashS=t=>{let h=5381;for(const ch of String(t))h=((h*33)^ch.codePointAt(0))>>>0;return h.toString(36)};
 const ME_K="foodpocket.me";
 const getMe=()=>{try{return localStorage.getItem(ME_K)||""}catch(e){return ""}};
@@ -171,7 +179,8 @@ async function connect(){
   },e=>{clearTimeout(timer);col=null;$("sync").textContent="雲端無法使用，改存在這台裝置";items=loadLocal();render()});
 }
 
-const nk=t=>String(t||"").replace(/[\s·・()（）]/g,"").toLowerCase();
+const tw=t=>String(t||"").replace(/臺/g,"台").toLowerCase();
+const nk=t=>tw(t).replace(/[\s·・()（）]/g,"");
 const same=(a,b)=>nk(a.name)===nk(b.name)&&(!a.county||!b.county||a.county===b.county);
 /* 同一家店只顯示一筆：我的那筆為主，朋友的評價掛在下面 */
 function groups(){
@@ -181,13 +190,14 @@ function groups(){
 }
 const gRate=g=>(g.mine&&g.mine.status==="been"&&g.mine.rating)||Math.max(0,...g.fr.filter(f=>f.status==="been").map(f=>f.rating||0));
 function filtered(){
-  const q=$("q").value.trim().toLowerCase(),a=$("fArea").value,t=$("fType").value,s=$("fSort").value;
+  const op=$("fOp").value,sc=+$("fScore").value,q=tw($("q").value.trim()),a=$("fArea").value,t=$("fType").value,s=$("fSort").value;
   let r=groups().filter(g=>{const it=g.p;
     return (fStatus==="all"||(fStatus==="friend"?!g.mine:g.mine&&g.mine.status===fStatus))
     &&(!fWho||(fWho==="@me"?g.mine:g.fr.some(f=>f.owner===fWho)))
     &&(!a||(a.startsWith("@")?it.county===a.slice(1):(it.country&&it.country!=="台灣"?a==="國外":areaOf(it.county)===a)))
     &&(!t||it.type===t)
-    &&(!q||[g.mine,...g.fr].filter(Boolean).map(x=>[x.name,x.district,x.county,x.address,x.pros,x.cons,x.note,x.type,x.owner].join(" ")).join(" ").toLowerCase().includes(q))});
+    &&(!op||($("fMine").checked?[g.mine]:[g.mine,...g.fr]).filter(x=>x&&x.status==="been"&&x.rating).some(x=>{const v=x.rating;return op==="ge"?v>=sc:op==="gt"?v>sc:op==="eq"?v===sc:op==="le"?v<=sc:v<sc}))
+    &&(!q||[g.mine,...g.fr].filter(Boolean).map(x=>[x.name,x.district,x.county,x.address,x.pros,x.cons,x.note,x.type,x.owner].join(" ")).map(tw).join(" ").includes(q))});
   const tm=g=>Math.max(...[g.mine,...g.fr].filter(Boolean).map(x=>x.created||0));
   r.sort(s==="rate"?(x,y)=>gRate(y)-gRate(x):s==="name"?(x,y)=>x.p.name.localeCompare(y.p.name,"zh-Hant"):(x,y)=>tm(y)-tm(x));
   return r;
@@ -472,7 +482,7 @@ $("fileIn").addEventListener("change",async e=>{const f=e.target.files[0];e.targ
     $("ov").classList.add("on");return}
   await importItems(pack,false,"mine")});
 let pending=null;
-["q","fArea","fType","fSort"].forEach(id=>$(id).addEventListener(id==="q"?"input":"change",render));
+["q","fArea","fType","fSort","fOp","fScore","fMine"].forEach(id=>$(id).addEventListener(id==="q"?"input":"change",()=>{$("fScore").disabled=$("fMine").disabled=!$("fOp").value;render()}));
 $("vList").onclick=()=>{view="list";$("vList").setAttribute("aria-pressed",true);$("vMap").setAttribute("aria-pressed",false);render()};
 $("vMap").onclick=()=>{view="map";$("vMap").setAttribute("aria-pressed",true);$("vList").setAttribute("aria-pressed",false);render()};
 $("addBtn").onclick=()=>openForm();
